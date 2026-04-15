@@ -5,6 +5,7 @@ interface GameScreenProps {
   board: BingoSquareData[];
   winningSquareIds: Set<number>;
   hasBingo: boolean;
+  playerName: string;
   onSquareClick: (squareId: number) => void;
   onReset: () => void;
 }
@@ -13,6 +14,7 @@ export function GameScreen({
   board,
   winningSquareIds,
   hasBingo,
+  playerName,
   onSquareClick,
   onReset,
 }: GameScreenProps) {
@@ -28,10 +30,10 @@ export function GameScreen({
           </button>
 
           <div className="text-center">
-            <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">
-              Bingo Mixer
+            <p className="text-xs uppercase tracking-[0.3em] text-sky-300/70 mb-1">
+              {playerName}
             </p>
-            <h1 className="text-3xl font-semibold tracking-[-0.03em] text-white">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-[-0.03em] text-white">
               Find your match
             </h1>
           </div>
@@ -44,8 +46,8 @@ export function GameScreen({
         </div>
 
         {hasBingo && (
-          <div className="mb-4 rounded-[1.75rem] border border-cyan-300/20 bg-gradient-to-r from-cyan-500/15 via-sky-500/15 to-violet-500/15 px-4 py-3 text-center text-sm font-semibold text-cyan-100 shadow-[0_0_30px_-15px_rgba(56,189,248,0.55)]">
-            🎉 BINGO! You completed a line!
+          <div className="mb-4 rounded-[1.75rem] border border-cyan-300/30 bg-gradient-to-r from-cyan-500/20 via-sky-500/20 to-violet-500/20 px-5 py-4 text-center text-base font-bold text-cyan-100 shadow-[0_0_40px_-10px_rgba(56,189,248,0.70)] animate-pulse">
+            🎉 BINGO! You completed a line! 🎉
           </div>
         )}
 
