@@ -1,15 +1,22 @@
 import { useState } from 'react';
+import type { GameMode } from '../types';
 
 interface StartScreenProps {
-  onStart: (playerName: string) => void;
+  onStartBingo: (playerName: string) => void;
+  onStartCardDeck: (playerName: string) => void;
 }
 
-export function StartScreen({ onStart }: StartScreenProps) {
+export function StartScreen({ onStartBingo, onStartCardDeck }: StartScreenProps) {
   const [playerName, setPlayerName] = useState('');
+  const [selectedMode, setSelectedMode] = useState<GameMode>('bingo');
 
   const handleStart = () => {
     const name = playerName.trim() || 'Player';
-    onStart(name);
+    if (selectedMode === 'bingo') {
+      onStartBingo(name);
+    } else {
+      onStartCardDeck(name);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -55,6 +62,52 @@ export function StartScreen({ onStart }: StartScreenProps) {
                 <li>• Tap again to unmark if priorities change.</li>
                 <li>• Celebrate each bingo with the group.</li>
               </ul>
+            </div>
+          </div>
+
+          {/* Game Mode Selection */}
+          <div className="mb-8">
+            <p className="text-xs uppercase tracking-[0.2em] text-sky-300/75 mb-4 block text-center">
+              Choose Game Mode
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <button
+                onClick={() => setSelectedMode('bingo')}
+                className={`rounded-3xl border p-5 transition-all ${
+                  selectedMode === 'bingo'
+                    ? 'border-sky-400/50 bg-sky-500/10 text-sky-300'
+                    : 'border-[rgba(148,163,184,0.10)] bg-[rgba(15,23,42,0.82)] text-slate-300 hover:bg-[rgba(30,41,59,0.82)]'
+                }`}
+              >
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-violet-500 to-sky-500 mb-3">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold mb-2">Bingo Board</h3>
+                  <p className="text-sm opacity-80">Classic bingo with a 5x5 board</p>
+                </div>
+              </button>
+
+              <button
+                onClick={() => setSelectedMode('card-deck')}
+                className={`rounded-3xl border p-5 transition-all ${
+                  selectedMode === 'card-deck'
+                    ? 'border-violet-400/50 bg-violet-500/10 text-violet-300'
+                    : 'border-[rgba(148,163,184,0.10)] bg-[rgba(15,23,42,0.82)] text-slate-300 hover:bg-[rgba(30,41,59,0.82)]'
+                }`}
+              >
+                <div className="text-center">
+                  <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-gradient-to-r from-violet-500 to-purple-500 mb-3">
+                    <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                    </svg>
+                  </div>
+                  <h3 className="font-semibold mb-2">Card Deck</h3>
+                  <p className="text-sm opacity-80">Draw random question cards</p>
+                </div>
+              </button>
             </div>
           </div>
 

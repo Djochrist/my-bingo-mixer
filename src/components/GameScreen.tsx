@@ -1,4 +1,4 @@
-import type { BingoSquareData } from '../types';
+import type { BingoSquareData, GameMode } from '../types';
 import { BingoBoard } from './BingoBoard';
 
 interface GameScreenProps {
@@ -8,6 +8,7 @@ interface GameScreenProps {
   playerName: string;
   onSquareClick: (squareId: number) => void;
   onReset: () => void;
+  onSwitchMode: (mode: GameMode) => void;
 }
 
 export function GameScreen({
@@ -17,6 +18,7 @@ export function GameScreen({
   playerName,
   onSquareClick,
   onReset,
+  onSwitchMode,
 }: GameScreenProps) {
   return (
     <div className="min-h-full px-4 pb-8 pt-6 bg-[linear-gradient(180deg,#080b13_0%,#0d1220_100%)] sm:px-6">
@@ -38,7 +40,12 @@ export function GameScreen({
             </h1>
           </div>
 
-          <div className="w-24" />
+          <button
+            onClick={() => onSwitchMode('card-deck')}
+            className="rounded-full border border-[rgba(148,163,184,0.14)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-[rgba(255,255,255,0.08)] focus-ring-neon"
+          >
+            Cards →
+          </button>
         </header>
 
         <div className="mb-4 rounded-[1.75rem] border border-[rgba(148,163,184,0.10)] bg-[rgba(15,23,42,0.84)] p-4 text-sm leading-6 text-slate-300 shadow-[0_30px_60px_-30px_rgba(15,23,42,0.45)]">

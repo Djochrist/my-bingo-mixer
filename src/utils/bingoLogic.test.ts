@@ -207,6 +207,17 @@ describe('bingoLogic', () => {
       expect(result?.type).toBe('diagonal');
     });
 
+    it('should detect a four corners bingo', () => {
+      const board = generateBoard();
+      [0, 4, 20, 24].forEach((i) => {
+        board[i].isMarked = true;
+      });
+      const result = checkBingo(board);
+      expect(result).not.toBeNull();
+      expect(result?.type).toBe('corners');
+      expect(result?.squares).toEqual([0, 4, 20, 24]);
+    });
+
     it('should work with free space in center', () => {
       const board = generateBoard();
       [10, 11, 12, 13, 14].forEach((i) => {

@@ -1,0 +1,6 @@
+{
+  "name": "Stop if tests fail",
+  "trigger": "stop",
+  "command": "npm run test",
+  "onFailure": "block"
+}
