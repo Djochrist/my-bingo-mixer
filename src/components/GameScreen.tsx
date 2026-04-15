@@ -17,38 +17,41 @@ export function GameScreen({
   onReset,
 }: GameScreenProps) {
   return (
-    <div className="flex flex-col min-h-full bg-gray-50">
-      {/* Header */}
-      <header className="flex items-center justify-between p-3 bg-white border-b border-gray-200">
-        <button
-          onClick={onReset}
-          className="text-gray-500 text-sm px-3 py-1.5 rounded active:bg-gray-100"
-        >
-          ← Back
-        </button>
-        <h1 className="font-bold text-gray-900">Bingo Mixer</h1>
-        <div className="w-16"></div>
-      </header>
+    <div className="min-h-full px-4 pb-8 pt-6 bg-[linear-gradient(180deg,#080b13_0%,#0d1220_100%)] sm:px-6">
+      <div className="mx-auto w-full max-w-5xl">
+        <header className="mb-4 flex items-center justify-between rounded-[2rem] border border-[rgba(148,163,184,0.12)] bg-[rgba(8,15,30,0.82)] p-4 shadow-[0_30px_60px_-30px_rgba(15,23,42,0.65)]">
+          <button
+            onClick={onReset}
+            className="rounded-full border border-[rgba(148,163,184,0.14)] bg-[rgba(255,255,255,0.04)] px-4 py-2 text-sm font-medium text-slate-200 transition hover:bg-[rgba(255,255,255,0.08)] focus-ring-neon"
+          >
+            ← Back
+          </button>
 
-      {/* Instructions */}
-      <p className="text-center text-gray-500 text-sm py-2 px-4">
-        Tap a square when you find someone who matches it.
-      </p>
+          <div className="text-center">
+            <p className="text-sm uppercase tracking-[0.3em] text-sky-300/80">
+              Bingo Mixer
+            </p>
+            <h1 className="text-3xl font-semibold tracking-[-0.03em] text-white">
+              Find your match
+            </h1>
+          </div>
 
-      {/* Bingo indicator */}
-      {hasBingo && (
-        <div className="bg-amber-100 text-amber-800 text-center py-2 font-semibold text-sm">
-          🎉 BINGO! You got a line!
+          <div className="w-24" />
+        </header>
+
+        <div className="mb-4 rounded-[1.75rem] border border-[rgba(148,163,184,0.10)] bg-[rgba(15,23,42,0.84)] p-4 text-sm leading-6 text-slate-300 shadow-[0_30px_60px_-30px_rgba(15,23,42,0.45)]">
+          Tap a square when it matches someone in the room. Free space is already yours.
         </div>
-      )}
 
-      {/* Board */}
-      <div className="flex-1 flex items-center justify-center p-3">
-        <BingoBoard
-          board={board}
-          winningSquareIds={winningSquareIds}
-          onSquareClick={onSquareClick}
-        />
+        {hasBingo && (
+          <div className="mb-4 rounded-[1.75rem] border border-cyan-300/20 bg-gradient-to-r from-cyan-500/15 via-sky-500/15 to-violet-500/15 px-4 py-3 text-center text-sm font-semibold text-cyan-100 shadow-[0_0_30px_-15px_rgba(56,189,248,0.55)]">
+            🎉 BINGO! You completed a line!
+          </div>
+        )}
+
+        <div className="glass-panel overflow-hidden px-4 py-5 sm:px-5 sm:py-6">
+          <BingoBoard board={board} winningSquareIds={winningSquareIds} onSquareClick={onSquareClick} />
+        </div>
       </div>
     </div>
   );
