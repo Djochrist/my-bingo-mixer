@@ -1,41 +1,98 @@
+import { Check, Star, Sparkles } from 'lucide-react';
 import type { BingoSquareData } from '../types';
+import { useColorMode } from '../context/ThemeContext';
+import { playMark, playUnmark } from '../utils/sounds';
 
 interface BingoSquareProps {
   square: BingoSquareData;
   isWinning: boolean;
+  index: number;
   onClick: () => void;
 }
 
-export function BingoSquare({ square, isWinning, onClick }: BingoSquareProps) {
-  const baseClasses =
-    'relative flex items-center justify-center rounded-3xl border p-3 text-center text-sm sm:text-base leading-5 sm:leading-6 transition duration-200 ease-out select-none min-h-[70px] sm:min-h-[80px]';
+export function BingoSquare({ square, isWinning, index, onClick }: BingoSquareProps) {
+  const { colorMode } = useColorMode();
+  const isDark = colorMode === 'dark';
 
-  const defaultClasses =
-    'bg-[rgba(15,23,42,0.72)] border-[rgba(148,163,184,0.10)] text-slate-200 hover:border-[rgba(56,189,248,0.35)] hover:bg-[rgba(71,85,105,0.72)]';
+  const handleClick = () => {
+    if (!square.isFreeSpace) {
+      if (square.isMarked) playUnmark(); else playMark();
+    }
+    onClick();
+  };
 
-  const markedClasses =
-    'bg-[rgba(59,130,246,0.18)] border-[rgba(56,189,248,0.38)] text-cyan-100 shadow-[0_0_24px_-10px_rgba(56,189,248,0.60)]';
+  const delayMs = index * 22;
 
-  const winningClasses =
-    'bg-[rgba(236,72,153,0.16)] border-[rgba(236,72,153,0.45)] text-fuchsia-100 shadow-[0_0_32px_-8px_rgba(236,72,153,0.75)] animate-pulse';
+  if (square.isFreeSpace) {
+    return (
+      <button
+        disabled
+        style={{ animationDelay: `${delayMs}ms` }}
+        className="bingo-tile bingo-tile-free animate-square-enter"
+        aria-label="Free space"
+      >
+        <div className="bingo-tile-gradient" />
+        <div className="holo-sweep" />
+        <div className="bingo-tile-inner">
+          <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4" strokeWidth={2} style={{ color: isDark ? 'rgba(255,255,255,0.85)' : 'var(--accent-a)' }} />
+          <span className="bingo-tile-text font-black">{square.text}</span>
+        </div>
+      </button>
+    );
+  }
 
-  const stateClasses = square.isMarked ? (isWinning ? winningClasses : markedClasses) : defaultClasses;
-  const freeSpaceClasses = square.isFreeSpace ? 'font-semibold text-sky-200' : '';
+  if (isWinning) {
+    return (
+      <button
+        onClick={handleClick}
+        style={{ animationDelay: `${delayMs}ms` }}
+        className="bingo-tile bingo-tile-winning animate-square-enter"
+        aria-pressed={square.isMarked}
+        aria-label={square.text}
+      >
+        <div className="bingo-tile-gradient-win" />
+        <div className="holo-sweep" />
+        <span className="absolute top-1.5 right-1.5 z-10 animate-mark-in">
+          <Star className="w-3 h-3 text-amber-400 fill-amber-400 drop-shadow-[0_0_4px_rgba(251,191,36,0.6)]" strokeWidth={0} />
+        </span>
+        <div className="bingo-tile-inner">
+          <span className="bingo-tile-text">{square.text}</span>
+        </div>
+      </button>
+    );
+  }
+
+  if (square.isMarked) {
+    return (
+      <button
+        onClick={handleClick}
+        style={{ animationDelay: `${delayMs}ms` }}
+        className="bingo-tile bingo-tile-marked animate-square-enter"
+        aria-pressed={true}
+        aria-label={square.text}
+      >
+        <div className="bingo-tile-gradient-marked" />
+        <span className="absolute top-1.5 right-1.5 z-10 animate-mark-in">
+          <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3 drop-shadow-[0_0_3px_rgba(var(--accent-rgb),0.5)]" style={{ color: isDark ? '#fff' : 'var(--accent-a)' }} strokeWidth={3} />
+        </span>
+        <div className="bingo-tile-inner">
+          <span className="bingo-tile-text">{square.text}</span>
+        </div>
+      </button>
+    );
+  }
 
   return (
     <button
-      onClick={onClick}
-      disabled={square.isFreeSpace}
-      className={`${baseClasses} ${stateClasses} ${freeSpaceClasses} ${square.isFreeSpace ? 'cursor-default opacity-90' : 'hover:-translate-y-1 active:scale-[0.97]'}`}
-      aria-pressed={square.isMarked}
-      aria-label={square.isFreeSpace ? 'Free space' : square.text}
+      onClick={handleClick}
+      style={{ animationDelay: `${delayMs}ms` }}
+      className="bingo-tile bingo-tile-default animate-square-enter"
+      aria-pressed={false}
+      aria-label={square.text}
     >
-      <span className="break-words hyphens-auto">{square.text}</span>
-      {square.isMarked && !square.isFreeSpace && (
-        <span className="absolute top-2 right-2 rounded-full bg-cyan-500/15 px-2 py-0.5 text-[10px] font-semibold text-cyan-100">
-          ✓
-        </span>
-      )}
+      <div className="bingo-tile-inner">
+        <span className="bingo-tile-text">{square.text}</span>
+      </div>
     </button>
   );
 }

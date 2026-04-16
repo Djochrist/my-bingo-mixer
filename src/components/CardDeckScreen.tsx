@@ -1,12 +1,21 @@
-import { useEffect, useState, useRef } from 'react';
-import { questions } from '../data/questions';
+import { useEffect, useState, useRef, useCallback } from 'react';
+import {
+  ArrowLeft, RotateCcw, CheckCircle, XCircle,
+  ChevronRight, ChevronLeft, Grid3X3, Layers,
+} from 'lucide-react';
 import type { GameMode } from '../types';
+import { getThemeById } from '../data/themes';
+import { useColorMode } from '../context/ThemeContext';
+import { ColorModeToggle } from './ColorModeToggle';
+import { ShareButton } from './ShareButton';
+import { playCardFlip, playSuccess, playUnmark } from '../utils/sounds';
 
 interface CardDeckScreenProps {
   currentCard: string | null;
   drawnCards: string[];
   remainingCards: string[];
   playerName: string;
+  themeId?: string;
   successCount: number;
   skipCount: number;
   lastAction: 'success' | 'skip' | null;
@@ -17,212 +26,433 @@ interface CardDeckScreenProps {
   onSwitchMode: (mode: GameMode) => void;
 }
 
+/** Five dot progress indicators */
+function ProgressDots({ current, total }: { current: number; total: number }) {
+  const dots = 5;
+  const filled = Math.round((current / Math.max(total, 1)) * dots);
+  return (
+    <div className="flex items-center gap-1.5">
+      {Array.from({ length: dots }).map((_, i) => (
+        <div
+          key={i}
+          className="rounded-full transition-all duration-500"
+          style={{
+            width: i < filled ? '16px' : '6px',
+            height: '6px',
+            background: i < filled
+              ? 'linear-gradient(90deg, var(--card-from), var(--card-to))'
+              : 'rgba(128,128,128,0.25)',
+          }}
+        />
+      ))}
+    </div>
+  );
+}
+
 export function CardDeckScreen({
-  currentCard,
-  drawnCards,
-  remainingCards,
-  playerName,
-  successCount,
-  skipCount,
-  lastAction,
-  onDrawCard,
-  onMarkSuccess,
-  onMarkSkip,
-  onReset,
-  onSwitchMode,
+  currentCard, drawnCards, remainingCards, playerName,
+  themeId = 'tech', successCount, skipCount, lastAction,
+  onDrawCard, onMarkSuccess, onMarkSkip, onReset, onSwitchMode,
 }: CardDeckScreenProps) {
-  // Auto-draw first card when entering card deck mode
+  const { colorMode } = useColorMode();
+  const theme = getThemeById(themeId);
+  const isDark = colorMode === 'dark';
+
   useEffect(() => {
-    if (!currentCard && remainingCards.length > 0) {
-      onDrawCard();
-    }
+    if (!currentCard && remainingCards.length > 0) onDrawCard();
   }, [currentCard, remainingCards.length, onDrawCard]);
 
-  // Swipe gesture handling
-  const [touchStart, setTouchStart] = useState<number | null>(null);
-  const [touchEnd, setTouchEnd] = useState<number | null>(null);
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(null);
+  const [dragOffset, setDragOffset] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
-  const cardRef = useRef<HTMLDivElement>(null);
+  const [swipeDir, setSwipeDir] = useState<'left' | 'right' | null>(null);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [displayCard, setDisplayCard] = useState<string | null>(currentCard);
+  const [questionKey, setQuestionKey] = useState(0);
+  const pendingDrawRef = useRef(false);
 
-  const minSwipeDistance = 50;
+  useEffect(() => {
+    if (!isFlipping) {
+      setDisplayCard(currentCard);
+      setQuestionKey(k => k + 1);
+    }
+  }, [currentCard, isFlipping]);
+
+  const triggerFlip = useCallback((action: () => void) => {
+    if (isFlipping) return;
+    setIsFlipping(true);
+    playCardFlip();
+    setTimeout(() => {
+      action();
+      setTimeout(() => setIsFlipping(false), 200);
+    }, 180);
+  }, [isFlipping]);
+
+  const handleDraw = () => {
+    if (isFlipping || pendingDrawRef.current) return;
+    pendingDrawRef.current = true;
+    triggerFlip(() => { onDrawCard(); pendingDrawRef.current = false; });
+  };
+
+  const handleSuccess = () => { playSuccess(); triggerFlip(onMarkSuccess); };
+  const handleSkip = () => { playUnmark(); triggerFlip(onMarkSkip); };
 
   const onTouchStart = (e: React.TouchEvent) => {
-    setTouchEnd(null);
-    setTouchStart(e.targetTouches[0].clientX);
-    setIsSwiping(false);
+    setTouchStart({ x: e.targetTouches[0].clientX, y: e.targetTouches[0].clientY });
+    setDragOffset(0); setIsSwiping(false); setSwipeDir(null);
   };
-
   const onTouchMove = (e: React.TouchEvent) => {
-    setTouchEnd(e.targetTouches[0].clientX);
-    if (touchStart && Math.abs(touchStart - e.targetTouches[0].clientX) > 10) {
-      setIsSwiping(true);
-    }
+    if (!touchStart) return;
+    const dx = e.targetTouches[0].clientX - touchStart.x;
+    const dy = e.targetTouches[0].clientY - touchStart.y;
+    if (!isSwiping && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy)) setIsSwiping(true);
+    if (isSwiping) { setDragOffset(dx); setSwipeDir(dx > 0 ? 'right' : 'left'); }
   };
-
   const onTouchEnd = () => {
-    if (!touchStart || !touchEnd || !isSwiping) return;
-    
-    const distance = touchStart - touchEnd;
-    const isLeftSwipe = distance > minSwipeDistance;
-    const isRightSwipe = distance < -minSwipeDistance;
-
-    if (isLeftSwipe) {
-      onMarkSkip();
-    } else if (isRightSwipe) {
-      onMarkSuccess();
+    if (!isSwiping || !touchStart) {
+      setDragOffset(0); setIsSwiping(false); setSwipeDir(null); setTouchStart(null); return;
     }
-
+    if (dragOffset < -60) {
+      setDragOffset(-320);
+      setTimeout(() => { handleSkip(); setDragOffset(0); setIsSwiping(false); setSwipeDir(null); }, 200);
+    } else if (dragOffset > 60) {
+      setDragOffset(320);
+      setTimeout(() => { handleSuccess(); setDragOffset(0); setIsSwiping(false); setSwipeDir(null); }, 200);
+    } else {
+      setDragOffset(0); setIsSwiping(false); setSwipeDir(null);
+    }
     setTouchStart(null);
-    setTouchEnd(null);
-    setIsSwiping(false);
   };
+
+  const total = drawnCards.length + remainingCards.length || 1;
+  const cardNum = drawnCards.length;
+  const tilt = Math.max(-18, Math.min(18, dragOffset * 0.08));
+
+  const cardTransform = isSwiping
+    ? `translateX(${dragOffset}px) rotate(${tilt}deg)`
+    : undefined;
+
+  const swipeOpacity = isSwiping ? Math.max(0.25, 1 - Math.abs(dragOffset) / 340) : 1;
 
   return (
-    <div className="min-h-full px-4 py-10 bg-[radial-gradient(circle_at_top,_rgba(124,58,237,0.20),transparent_22%),radial-gradient(circle_at_90%_10%,rgba(56,189,248,0.14),transparent_14%),linear-gradient(180deg,#06070f_0%,#090b14_100%)]">
-      <div className="mx-auto max-w-4xl">
-        {/* Header */}
-        <div className="mb-8 text-center">
-          <div className="flex items-center justify-between mb-4">
-            <button
-              onClick={() => onSwitchMode('bingo')}
-              className="inline-flex items-center justify-center rounded-full border border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.82)] px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-[rgba(30,41,59,0.82)] hover:text-white"
-            >
-              ← Bingo Mode
-            </button>
-            <button
-              onClick={onReset}
-              className="inline-flex items-center justify-center rounded-full border border-[rgba(148,163,184,0.14)] bg-[rgba(15,23,42,0.82)] px-4 py-2 text-sm font-medium text-slate-300 transition hover:bg-[rgba(30,41,59,0.82)] hover:text-white"
-            >
-              Reset
+    <div className="min-h-screen px-4 py-5 sm:px-6">
+      <div className="mx-auto max-w-sm space-y-4 animate-slide-up">
+
+        {/* ── Header bar ──────────────────────────────────────────────── */}
+        <header className="flex items-center justify-between gap-2">
+          <button onClick={() => onSwitchMode('bingo')} className="btn-ghost px-3 py-2 gap-1.5">
+            <ArrowLeft className="w-3.5 h-3.5" strokeWidth={2.5} />
+            <span className="text-sm font-semibold">Back</span>
+          </button>
+          <div className="flex items-center gap-1.5">
+            <ColorModeToggle />
+            <button onClick={onReset} className="btn-ghost px-2.5 py-2" title="Reset">
+              <RotateCcw className="w-3.5 h-3.5" strokeWidth={2} />
             </button>
           </div>
-          <p className="text-sm uppercase tracking-[0.35em] text-sky-300/80 mb-2">
-            Card Deck Shuffle
-          </p>
-          <h1 className="text-3xl sm:text-4xl font-semibold tracking-[-0.04em] text-white mb-2">
-            {playerName ? `${playerName}'s` : 'Your'} Question Cards
-          </h1>
-          <p className="text-slate-300">
-            {remainingCards.length} cards remaining • {drawnCards.length} drawn
-          </p>
+        </header>
+
+        {/* ── Stats strip ─────────────────────────────────────────────── */}
+        <div
+          className="flex items-center divide-x rounded-2xl overflow-hidden"
+          style={{
+            background: isDark ? 'rgba(255,255,255,0.04)' : '#ffffff',
+            border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.08)',
+            boxShadow: isDark ? 'none' : '0 1px 8px rgba(0,0,0,0.06)',
+            divideColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
+          }}
+        >
+          {([
+            { label: 'Left',    value: remainingCards.length },
+            { label: 'Found',   value: successCount,  accent: '#22c55e' },
+            { label: 'Skipped', value: skipCount,      accent: '#f43f5e' },
+            { label: 'Player',  value: playerName,     isText: true },
+          ] as const).map(({ label, value, accent, isText }) => (
+            <div
+              key={label}
+              className="flex-1 py-2.5 px-1 text-center"
+              style={{ borderColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)' }}
+            >
+              <p
+                className={isText ? 'text-xs font-bold truncate px-1' : 'text-xl font-black tabular-nums'}
+                style={{ color: accent ?? (isDark ? '#e2e0ff' : '#1e1b4b') }}
+              >
+                {value}
+              </p>
+              <p className="text-[10px] font-semibold mt-0.5" style={{ color: isDark ? 'rgba(255,255,255,0.30)' : 'rgba(0,0,0,0.35)' }}>
+                {label}
+              </p>
+            </div>
+          ))}
         </div>
 
-        {/* Current Card */}
-        <div className="mb-8">
+        {/* ── MAIN CARD ─────────────────────────────────────────────────
+            Structure inspired by physical card / ticket design:
+            • Gradient header (40% of card) — theme identity lives here
+            • White body — question text, large + centred
+            • Perforated divider — visual separation
+            • Footer — progress, counter, swipe hint
+        ────────────────────────────────────────────────────────────── */}
+        <div style={{ perspective: '1200px' }}>
           <div
-            ref={cardRef}
-            className={`mx-auto max-w-2xl cursor-pointer select-none ${
-              lastAction === 'success' ? 'animate-pulse bg-green-500/20' :
-              lastAction === 'skip' ? 'animate-pulse bg-red-500/20' : ''
-            }`}
-            onClick={onDrawCard}
+            onClick={!isSwiping ? handleDraw : undefined}
             onTouchStart={onTouchStart}
             onTouchMove={onTouchMove}
             onTouchEnd={onTouchEnd}
+            className={`relative select-none cursor-pointer rounded-3xl overflow-hidden ${
+              isFlipping ? 'animate-card-flip' : ''
+            } ${!isSwiping ? 'transition-transform duration-200 hover:scale-[1.013] hover:-translate-y-1.5' : ''}`}
+            style={{
+              transform: cardTransform,
+              opacity: swipeOpacity,
+              boxShadow: isDark
+                ? '0 4px 6px rgba(0,0,0,0.4), 0 20px 60px -12px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.06)'
+                : '0 4px 6px rgba(0,0,0,0.06), 0 20px 60px -12px rgba(0,0,0,0.18), 0 0 0 1px rgba(0,0,0,0.06)',
+            }}
           >
-            <div className={`glass-panel rounded-[2rem] border-[rgba(148,163,184,0.14)] p-8 sm:p-12 transition-all duration-300 hover:scale-105 hover:shadow-[0_25px_50px_-12px_rgba(59,130,246,0.25)] ${
-              isSwiping ? 'scale-95' : ''
-            }`}>
-              <div className="text-center">
-                <div className="mb-6">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-gradient-to-r from-violet-500 to-sky-500 mb-4">
-                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                  </div>
-                  <p className="text-sm uppercase tracking-[0.2em] text-sky-300/75 mb-4">
-                    Current Card
+            {/* ── Swipe overlays ── */}
+            {swipeDir === 'right' && dragOffset > 25 && (
+              <div className="absolute inset-0 z-40 flex items-center justify-start pl-8 pointer-events-none"
+                style={{ background: 'rgba(16,185,129,0.08)' }}>
+                <div
+                  className="rounded-xl border-[3px] font-black text-xl px-5 py-2 rotate-[-14deg]"
+                  style={{ borderColor: '#22c55e', color: '#22c55e' }}
+                >
+                  FOUND ✓
+                </div>
+              </div>
+            )}
+            {swipeDir === 'left' && dragOffset < -25 && (
+              <div className="absolute inset-0 z-40 flex items-center justify-end pr-8 pointer-events-none"
+                style={{ background: 'rgba(244,63,94,0.08)' }}>
+                <div
+                  className="rounded-xl border-[3px] font-black text-xl px-5 py-2 rotate-[14deg]"
+                  style={{ borderColor: '#f43f5e', color: '#f43f5e' }}
+                >
+                  SKIP ✕
+                </div>
+              </div>
+            )}
+
+            {/* ════════════════════════════════════════════════════
+                HEADER — gradient theme area (≈38% of card)
+            ════════════════════════════════════════════════════ */}
+            <div
+              className="relative flex flex-col items-center justify-center pt-9 pb-8 px-6 gap-3"
+              style={{
+                background: `linear-gradient(145deg, var(--card-from) 0%, var(--card-to) 100%)`,
+              }}
+            >
+              {/* Subtle inner texture */}
+              <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                  backgroundImage: 'radial-gradient(circle at 30% 50%, rgba(255,255,255,0.18) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(255,255,255,0.12) 0%, transparent 50%)',
+                }}
+              />
+              {/* Holographic sweep in header */}
+              <div className="holo-sweep" />
+
+              {/* Large emoji */}
+              <div
+                className="relative z-10 w-16 h-16 rounded-2xl flex items-center justify-center text-4xl"
+                style={{
+                  background: 'rgba(255,255,255,0.18)',
+                  backdropFilter: 'blur(8px)',
+                  boxShadow: '0 2px 16px rgba(0,0,0,0.18), inset 0 1px 0 rgba(255,255,255,0.35)',
+                  border: '1px solid rgba(255,255,255,0.28)',
+                }}
+              >
+                {theme.emoji}
+              </div>
+
+              {/* Theme name chip */}
+              <div
+                className="relative z-10 flex items-center gap-1.5 rounded-full px-3.5 py-1.5"
+                style={{
+                  background: 'rgba(255,255,255,0.20)',
+                  backdropFilter: 'blur(8px)',
+                  border: '1px solid rgba(255,255,255,0.30)',
+                }}
+              >
+                <Layers className="w-3 h-3 text-white" strokeWidth={2.5} />
+                <span className="text-white text-xs font-black tracking-widest uppercase">{theme.name}</span>
+              </div>
+            </div>
+
+            {/* ════════════════════════════════════════════════════
+                PERFORATED DIVIDER
+            ════════════════════════════════════════════════════ */}
+            <div
+              className="relative flex items-center"
+              style={{ background: isDark ? '#111120' : '#ffffff' }}
+            >
+              {/* Left half-circle notch */}
+              <div
+                className="absolute -left-3 w-6 h-6 rounded-full z-10"
+                style={{ background: isDark ? '#04050d' : '#f1f0f9' }}
+              />
+              {/* Right half-circle notch */}
+              <div
+                className="absolute -right-3 w-6 h-6 rounded-full z-10"
+                style={{ background: isDark ? '#04050d' : '#f1f0f9' }}
+              />
+              {/* Dashed line */}
+              <div
+                className="w-full mx-4"
+                style={{
+                  height: '1px',
+                  backgroundImage: `repeating-linear-gradient(90deg, ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'} 0px, ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'} 6px, transparent 6px, transparent 12px)`,
+                }}
+              />
+            </div>
+
+            {/* ════════════════════════════════════════════════════
+                BODY — the question
+            ════════════════════════════════════════════════════ */}
+            <div
+              className="px-7 pt-7 pb-5"
+              style={{ background: isDark ? '#111120' : '#ffffff' }}
+            >
+              <p
+                className="text-center text-[11px] font-black tracking-[0.18em] uppercase mb-4"
+                style={{ color: isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.30)' }}
+              >
+                Find someone who…
+              </p>
+
+              {displayCard ? (
+                <div key={questionKey} className="min-h-[110px] flex items-center justify-center">
+                  <p
+                    className="animate-question-in text-center font-black leading-snug tracking-tight"
+                    style={{
+                      color: isDark ? '#f0eeff' : '#111827',
+                      fontSize: displayCard.length > 50 ? '1.5rem' : displayCard.length > 30 ? '1.75rem' : '2.125rem',
+                    }}
+                  >
+                    {displayCard}
                   </p>
                 </div>
+              ) : (
+                <div className="min-h-[110px] flex flex-col items-center justify-center gap-3">
+                  <div
+                    className="w-14 h-14 rounded-2xl flex items-center justify-center text-2xl animate-float"
+                    style={{
+                      background: `linear-gradient(135deg, var(--card-from), var(--card-to))`,
+                      boxShadow: `0 8px 24px -6px rgba(var(--accent-rgb),0.50)`,
+                    }}
+                  >
+                    🎲
+                  </div>
+                  <div className="text-center">
+                    <p className="font-bold text-base" style={{ color: isDark ? '#e2e0ff' : '#1e1b4b' }}>Ready to play?</p>
+                    <p className="text-xs mt-0.5" style={{ color: isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.35)' }}>Tap the card to draw your first question</p>
+                  </div>
+                </div>
+              )}
+            </div>
 
-                {currentCard ? (
-                  <div className="space-y-4">
-                    <p className="text-2xl sm:text-3xl font-semibold text-white leading-relaxed">
-                      {currentCard}
-                    </p>
-                    <p className="text-slate-400 text-sm">
-                      Swipe right for ✓ success • Swipe left for ✗ skip
-                    </p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-2xl sm:text-3xl font-semibold text-white leading-relaxed">
-                      Ready to start?
-                    </p>
-                    <p className="text-slate-400 text-sm">
-                      Tap to draw your first card
-                    </p>
-                  </div>
-                )}
+            {/* ════════════════════════════════════════════════════
+                FOOTER — progress + counter + swipe hint
+            ════════════════════════════════════════════════════ */}
+            <div
+              className="px-6 pt-3 pb-5"
+              style={{
+                background: isDark ? '#111120' : '#ffffff',
+                borderTop: isDark ? '1px solid rgba(255,255,255,0.05)' : '1px solid rgba(0,0,0,0.05)',
+              }}
+            >
+              <div className="flex items-center justify-between mb-2.5">
+                <ProgressDots current={cardNum} total={total} />
+                <span
+                  className="font-mono text-xs font-bold tabular-nums"
+                  style={{ color: isDark ? 'rgba(255,255,255,0.28)' : 'rgba(0,0,0,0.28)' }}
+                >
+                  {String(cardNum).padStart(2, '0')} / {String(total).padStart(2, '0')}
+                </span>
+              </div>
+              <div
+                className="flex items-center justify-between text-[10px] font-semibold"
+                style={{ color: isDark ? 'rgba(255,255,255,0.18)' : 'rgba(0,0,0,0.22)' }}
+              >
+                <span className="flex items-center gap-0.5">
+                  <ChevronLeft className="w-2.5 h-2.5" strokeWidth={3} />
+                  Skip
+                </span>
+                <span className="tracking-widest">TAP TO DRAW</span>
+                <span className="flex items-center gap-0.5">
+                  Found
+                  <ChevronRight className="w-2.5 h-2.5" strokeWidth={3} />
+                </span>
               </div>
             </div>
           </div>
         </div>
 
-        {/* Deck Stats */}
-        <div className="grid gap-4 sm:grid-cols-5 max-w-4xl mx-auto">
-          <div className="rounded-3xl border border-[rgba(148,163,184,0.10)] bg-[rgba(15,23,42,0.82)] p-5 text-center">
-            <div className="text-2xl font-bold text-sky-400 mb-1">
-              {remainingCards.length}
-            </div>
-            <p className="text-xs uppercase tracking-[0.2em] text-sky-300/75">
-              Cards Left
-            </p>
-          </div>
+        {/* ── Action buttons ───────────────────────────────────────────── */}
+        {currentCard && (
+          <div className="grid grid-cols-2 gap-3 pt-1">
+            <button
+              onClick={handleSkip}
+              className="flex flex-col items-center gap-1 rounded-2xl py-4 font-bold text-sm transition-all duration-200 active:scale-95"
+              style={{
+                background: isDark ? 'rgba(244,63,94,0.08)' : '#fff1f2',
+                border: isDark ? '1.5px solid rgba(244,63,94,0.25)' : '1.5px solid rgba(244,63,94,0.20)',
+                color: isDark ? '#fb7185' : '#be123c',
+                boxShadow: 'none',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 0 24px -6px rgba(244,63,94,0.40)';
+                (e.currentTarget as HTMLElement).style.borderColor = 'rgba(244,63,94,0.45)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.boxShadow = 'none';
+                (e.currentTarget as HTMLElement).style.borderColor = isDark ? 'rgba(244,63,94,0.25)' : 'rgba(244,63,94,0.20)';
+              }}
+            >
+              <XCircle className="w-6 h-6" strokeWidth={2} />
+              <span>Skip</span>
+              <span style={{ fontSize: '0.65rem', opacity: 0.45, fontWeight: 500 }}>← swipe left</span>
+            </button>
 
-          <div className="rounded-3xl border border-[rgba(148,163,184,0.10)] bg-[rgba(15,23,42,0.82)] p-5 text-center">
-            <div className="text-2xl font-bold text-violet-400 mb-1">
-              {drawnCards.length}
-            </div>
-            <p className="text-xs uppercase tracking-[0.2em] text-sky-300/75">
-              Cards Drawn
-            </p>
+            <button
+              onClick={handleSuccess}
+              className="flex flex-col items-center gap-1 rounded-2xl py-4 font-bold text-sm text-white transition-all duration-200 active:scale-95"
+              style={{
+                background: 'linear-gradient(135deg, #16a34a, #22c55e)',
+                border: '1.5px solid rgba(34,197,94,0.50)',
+                boxShadow: '0 4px 20px -6px rgba(34,197,94,0.45)',
+              }}
+              onMouseEnter={e => {
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 6px 28px -4px rgba(34,197,94,0.65)';
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(-2px)';
+              }}
+              onMouseLeave={e => {
+                (e.currentTarget as HTMLElement).style.boxShadow = '0 4px 20px -6px rgba(34,197,94,0.45)';
+                (e.currentTarget as HTMLElement).style.transform = 'translateY(0)';
+              }}
+            >
+              <CheckCircle className="w-6 h-6" strokeWidth={2} />
+              <span>Found it!</span>
+              <span style={{ fontSize: '0.65rem', opacity: 0.65, fontWeight: 500 }}>swipe right →</span>
+            </button>
           </div>
+        )}
 
-          <div className="rounded-3xl border border-[rgba(148,163,184,0.10)] bg-[rgba(15,23,42,0.82)] p-5 text-center">
-            <div className="text-2xl font-bold text-green-400 mb-1">
-              {successCount}
-            </div>
-            <p className="text-xs uppercase tracking-[0.2em] text-sky-300/75">
-              ✓ Success
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-[rgba(148,163,184,0.10)] bg-[rgba(15,23,42,0.82)] p-5 text-center">
-            <div className="text-2xl font-bold text-red-400 mb-1">
-              {skipCount}
-            </div>
-            <p className="text-xs uppercase tracking-[0.2em] text-sky-300/75">
-              ✗ Skip
-            </p>
-          </div>
-
-          <div className="rounded-3xl border border-[rgba(148,163,184,0.10)] bg-[rgba(15,23,42,0.82)] p-5 text-center">
-            <div className="text-2xl font-bold text-cyan-400 mb-1">
-              {questions.length}
-            </div>
-            <p className="text-xs uppercase tracking-[0.2em] text-sky-300/75">
-              Total Cards
-            </p>
-          </div>
+        {/* ── Footer links ─────────────────────────────────────────────── */}
+        <div className="flex items-center justify-between pt-1">
+          <button
+            onClick={() => onSwitchMode('bingo')}
+            className="btn-ghost text-xs px-3 py-1.5 gap-1.5"
+          >
+            <Grid3X3 className="w-3 h-3" strokeWidth={2} />
+            Switch to Bingo Board
+          </button>
+          {successCount >= 3 && (
+            <ShareButton playerName={playerName} themeId={themeId} markedCount={successCount} />
+          )}
         </div>
 
-        {/* Instructions */}
-        <div className="mt-8 max-w-2xl mx-auto">
-          <div className="rounded-3xl border border-[rgba(148,163,184,0.10)] bg-[rgba(15,23,42,0.82)] p-6">
-            <p className="text-xs uppercase tracking-[0.2em] text-sky-300/75 mb-3">
-              How to play
-            </p>
-            <ul className="space-y-2 text-sm leading-6 text-slate-300">
-              <li>• Tap the card area to draw a new random question</li>
-              <li>• Swipe right ✓ to mark as success (found a match)</li>
-              <li>• Swipe left ✗ to skip/fail (no matches found)</li>
-              <li>• Ask the question to your group and find matches</li>
-              <li>• Keep drawing cards to keep the conversation going</li>
-              <li>• Deck automatically reshuffles when empty</li>
-            </ul>
-          </div>
-        </div>
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { questions } from '../data/questions';
+import { getThemeById } from '../data/themes';
 import type { GameMode } from '../types';
 
 export interface CardDeckGameState {
@@ -8,18 +8,23 @@ export interface CardDeckGameState {
   drawnCards: string[];
   remainingCards: string[];
   playerName: string;
+  themeId: string;
   successCount: number;
   skipCount: number;
   lastAction: 'success' | 'skip' | null;
 }
 
 export interface CardDeckGameActions {
-  startCardDeck: (playerName: string) => void;
+  startCardDeck: (playerName: string, themeId?: string) => void;
   drawCard: () => void;
   markSuccess: () => void;
   markSkip: () => void;
   resetGame: () => void;
   switchMode: (mode: GameMode) => void;
+}
+
+function shuffleTheme(themeId: string): string[] {
+  return [...getThemeById(themeId).questions].sort(() => Math.random() - 0.5);
 }
 
 export function useCardDeckGame(): CardDeckGameState & CardDeckGameActions {
@@ -28,55 +33,46 @@ export function useCardDeckGame(): CardDeckGameState & CardDeckGameActions {
   const [drawnCards, setDrawnCards] = useState<string[]>([]);
   const [remainingCards, setRemainingCards] = useState<string[]>([]);
   const [playerName, setPlayerName] = useState<string>('');
+  const [themeId, setThemeId] = useState<string>('tech');
   const [successCount, setSuccessCount] = useState<number>(0);
   const [skipCount, setSkipCount] = useState<number>(0);
   const [lastAction, setLastAction] = useState<'success' | 'skip' | null>(null);
 
-  const startCardDeck = useCallback((name: string) => {
+  const startCardDeck = useCallback((name: string, tid = 'tech') => {
     setPlayerName(name);
+    setThemeId(tid);
     setGameMode('card-deck');
-    // Shuffle the deck
-    const shuffled = [...questions].sort(() => Math.random() - 0.5);
-    setRemainingCards(shuffled);
+    setRemainingCards(shuffleTheme(tid));
     setDrawnCards([]);
     setCurrentCard(null);
+    setSuccessCount(0);
+    setSkipCount(0);
+    setLastAction(null);
   }, []);
 
   const drawCard = useCallback(() => {
-    if (remainingCards.length === 0) {
-      // Reshuffle if deck is empty
-      const shuffled = [...questions].sort(() => Math.random() - 0.5);
-      setRemainingCards(shuffled);
-      setDrawnCards([]);
-    }
-
-    const [nextCard, ...rest] = remainingCards;
-    setCurrentCard(nextCard);
-    setDrawnCards(prev => [...prev, nextCard]);
-    setRemainingCards(rest);
-  }, [remainingCards]);
+    setRemainingCards((prev) => {
+      const deck = prev.length === 0 ? shuffleTheme(themeId) : prev;
+      const [nextCard, ...rest] = deck;
+      setCurrentCard(nextCard);
+      setDrawnCards((d) => [...d, nextCard]);
+      return rest;
+    });
+  }, [themeId]);
 
   const markSuccess = useCallback(() => {
     if (currentCard) {
-      setSuccessCount(prev => prev + 1);
+      setSuccessCount((c) => c + 1);
       setLastAction('success');
-      // Auto-draw next card after a brief delay
-      setTimeout(() => {
-        drawCard();
-        setLastAction(null);
-      }, 500);
+      setTimeout(() => { drawCard(); setLastAction(null); }, 500);
     }
   }, [currentCard, drawCard]);
 
   const markSkip = useCallback(() => {
     if (currentCard) {
-      setSkipCount(prev => prev + 1);
+      setSkipCount((c) => c + 1);
       setLastAction('skip');
-      // Auto-draw next card after a brief delay
-      setTimeout(() => {
-        drawCard();
-        setLastAction(null);
-      }, 500);
+      setTimeout(() => { drawCard(); setLastAction(null); }, 500);
     }
   }, [currentCard, drawCard]);
 
@@ -86,6 +82,7 @@ export function useCardDeckGame(): CardDeckGameState & CardDeckGameActions {
     setDrawnCards([]);
     setRemainingCards([]);
     setPlayerName('');
+    setThemeId('tech');
     setSuccessCount(0);
     setSkipCount(0);
     setLastAction(null);
@@ -94,27 +91,15 @@ export function useCardDeckGame(): CardDeckGameState & CardDeckGameActions {
   const switchMode = useCallback((mode: GameMode) => {
     setGameMode(mode);
     if (mode === 'card-deck') {
-      const shuffled = [...questions].sort(() => Math.random() - 0.5);
-      setRemainingCards(shuffled);
+      setRemainingCards(shuffleTheme(themeId));
       setDrawnCards([]);
       setCurrentCard(null);
     }
-  }, []);
+  }, [themeId]);
 
   return {
-    gameMode,
-    currentCard,
-    drawnCards,
-    remainingCards,
-    playerName,
-    successCount,
-    skipCount,
-    lastAction,
-    startCardDeck,
-    drawCard,
-    markSuccess,
-    markSkip,
-    resetGame,
-    switchMode,
+    gameMode, currentCard, drawnCards, remainingCards,
+    playerName, themeId, successCount, skipCount, lastAction,
+    startCardDeck, drawCard, markSuccess, markSkip, resetGame, switchMode,
   };
 }

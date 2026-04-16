@@ -1,25 +1,78 @@
+import { Trophy, BarChart2, X } from 'lucide-react';
+import { useColorMode } from '../context/ThemeContext';
+import { ShareButton } from './ShareButton';
+import { Confetti } from './Confetti';
+
 interface BingoModalProps {
+  playerName?: string;
+  themeId?: string;
+  markedCount?: number;
   onDismiss: () => void;
 }
 
-export function BingoModal({ onDismiss }: BingoModalProps) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 px-4 py-6 backdrop-blur-sm">
-      <div className="glass-panel max-w-md w-full rounded-[2rem] border-[rgba(148,163,184,0.14)] p-8 text-center shadow-[0_35px_80px_-35px_rgba(15,23,42,0.75)] animate-pulse">
-        <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-violet-500 via-sky-500 to-cyan-400 text-6xl shadow-[0_0_40px_rgba(56,189,248,0.50)]">
-          🎉
-        </div>
-        <h2 className="text-5xl font-bold tracking-[-0.03em] text-white mb-4 animate-bounce">BINGO!</h2>
-        <p className="mx-auto mb-8 max-w-sm text-base leading-7 text-slate-200">
-          🎊 You completed a line! Keep playing or reset the board for another round. 🎊
-        </p>
+export function BingoModal({ playerName = 'Player', themeId = 'tech', markedCount = 0, onDismiss }: BingoModalProps) {
+  const { colorMode } = useColorMode();
 
-        <button
-          onClick={onDismiss}
-          className="inline-flex w-full items-center justify-center rounded-full bg-gradient-to-r from-violet-500 via-sky-500 to-cyan-400 px-6 py-4 text-base font-bold text-white shadow-[0_18px_60px_-24px_rgba(59,130,246,0.9)] transition hover:-translate-y-1 active:translate-y-0.5"
-        >
-          Keep Playing 🚀
-        </button>
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center px-4 pb-8 sm:pb-0">
+      <Confetti active={true} />
+      <div className="absolute inset-0 bg-black/60 animate-backdrop-in backdrop-blur-enter" onClick={onDismiss} />
+
+      <div className="relative w-full max-w-sm z-10 animate-modal-in">
+        <div className="glass rounded-3xl p-8 text-center glow-border relative overflow-hidden">
+
+          <div className="absolute inset-0 pointer-events-none">
+            <div className="absolute inset-0 bg-gradient-to-br from-violet-600/8 to-cyan-500/5 rounded-3xl" />
+          </div>
+
+          <button
+            onClick={onDismiss}
+            className="absolute top-4 right-4 btn-ghost px-2 py-2 z-10"
+            aria-label="Dismiss"
+          >
+            <X className="w-4 h-4" strokeWidth={2} />
+          </button>
+
+          <div className="animate-trophy-bounce mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-violet-600 to-cyan-500 shadow-[0_0_50px_-10px_rgba(139,92,246,0.85)]">
+            <Trophy className="w-9 h-9 text-white" strokeWidth={1.75} />
+          </div>
+
+          <div className="animate-modal-text-1">
+            <h2 className="text-4xl font-black tracking-tight heading-gradient mb-1">BINGO!</h2>
+            <p className="text-body text-sm mb-6">
+              {playerName} completed a line — well played!
+            </p>
+          </div>
+
+          <div className="animate-modal-text-2 surface rounded-2xl p-4 mb-6">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <BarChart2 className={`w-3.5 h-3.5 ${colorMode === 'dark' ? 'text-violet-400' : 'text-violet-600'}`} strokeWidth={2} />
+              <span className="text-label">Your score</span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 text-center">
+              <div>
+                <p className="text-3xl font-black heading-gradient">{markedCount}</p>
+                <p className="text-label mt-0.5">Squares marked</p>
+              </div>
+              <div>
+                <p className="text-3xl font-black heading-gradient">1</p>
+                <p className="text-label mt-0.5">Bingo line</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="animate-modal-text-3 flex items-center justify-center gap-2 mb-5">
+            <span className="text-body text-xs">Share with the group</span>
+            <ShareButton playerName={playerName} themeId={themeId} markedCount={markedCount} />
+          </div>
+
+          <div className="animate-modal-text-3">
+            <button onClick={onDismiss} className="btn-primary w-full justify-center">
+              Keep Playing
+            </button>
+          </div>
+
+        </div>
       </div>
     </div>
   );

@@ -172,9 +172,9 @@ export function useBingoGame(): BingoGameState & BingoGameActions {
     saveGameState(gameState, board, winningLine, playerName);
   }, [gameState, board, winningLine, playerName]);
 
-  const startGame = useCallback((name: string) => {
+  const startGame = useCallback((name: string, themeQuestions?: string[]) => {
     setPlayerName(name);
-    setBoard(generateBoard());
+    setBoard(generateBoard(themeQuestions));
     setWinningLine(null);
     setGameState('playing');
   }, []);

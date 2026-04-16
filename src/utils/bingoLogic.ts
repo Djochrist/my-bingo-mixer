@@ -22,8 +22,9 @@ function shuffleArray<T>(array: T[]): T[] {
 /**
  * Generate a new 5x5 bingo board
  */
-export function generateBoard(): BingoSquareData[] {
-  const shuffledQuestions = shuffleArray(questions).slice(0, 24);
+export function generateBoard(customQuestions?: string[]): BingoSquareData[] {
+  const pool = customQuestions && customQuestions.length >= 24 ? customQuestions : questions;
+  const shuffledQuestions = shuffleArray(pool).slice(0, 24);
   const board: BingoSquareData[] = [];
 
   let questionIndex = 0;

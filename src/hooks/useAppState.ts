@@ -1,32 +1,26 @@
 import { useState, useCallback } from 'react';
 import { useBingoGame } from './useBingoGame';
 import { useCardDeckGame } from './useCardDeckGame';
+import { getThemeById } from '../data/themes';
 import type { GameMode } from '../types';
-
-export interface AppState {
-  currentMode: GameMode | 'start';
-}
-
-export interface AppActions {
-  startBingo: (playerName: string) => void;
-  startCardDeck: (playerName: string) => void;
-  resetToStart: () => void;
-  switchMode: (mode: GameMode) => void;
-}
 
 export function useAppState() {
   const [currentMode, setCurrentMode] = useState<GameMode | 'start'>('start');
+  const [themeId, setThemeId] = useState('tech');
 
   const bingoGame = useBingoGame();
   const cardDeckGame = useCardDeckGame();
 
-  const startBingo = useCallback((playerName: string) => {
-    bingoGame.startGame(playerName);
+  const startBingo = useCallback((playerName: string, tid = 'tech') => {
+    const theme = getThemeById(tid);
+    setThemeId(tid);
+    bingoGame.startGame(playerName, theme.questions);
     setCurrentMode('bingo');
   }, [bingoGame]);
 
-  const startCardDeck = useCallback((playerName: string) => {
-    cardDeckGame.startCardDeck(playerName);
+  const startCardDeck = useCallback((playerName: string, tid = 'tech') => {
+    setThemeId(tid);
+    cardDeckGame.startCardDeck(playerName, tid);
     setCurrentMode('card-deck');
   }, [cardDeckGame]);
 
@@ -45,23 +39,26 @@ export function useAppState() {
     }
   }, [cardDeckGame]);
 
+  const markedCount = bingoGame.board.filter((s) => s.isMarked && !s.isFreeSpace).length;
+
   return {
     currentMode,
+    themeId,
     startBingo,
     startCardDeck,
     resetToStart,
     switchMode,
-    // Bingo game properties
+    // Bingo
     gameState: bingoGame.gameState,
     board: bingoGame.board,
     winningLine: bingoGame.winningLine,
     winningSquareIds: bingoGame.winningSquareIds,
     showBingoModal: bingoGame.showBingoModal,
-    startGame: bingoGame.startGame,
     handleSquareClick: bingoGame.handleSquareClick,
     resetGame: bingoGame.resetGame,
     dismissModal: bingoGame.dismissModal,
-    // Card deck properties
+    markedCount,
+    // Card deck
     currentCard: cardDeckGame.currentCard,
     drawnCards: cardDeckGame.drawnCards,
     remainingCards: cardDeckGame.remainingCards,
@@ -71,7 +68,7 @@ export function useAppState() {
     drawCard: cardDeckGame.drawCard,
     markSuccess: cardDeckGame.markSuccess,
     markSkip: cardDeckGame.markSkip,
-    // Shared properties (use bingo's playerName as primary)
+    // Player name
     playerName: bingoGame.playerName || cardDeckGame.playerName,
   };
 }
