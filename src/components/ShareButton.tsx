@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Share2, Check, Copy } from 'lucide-react';
+import { Share2, Check } from 'lucide-react';
 import { getThemeById } from '../data/themes';
 import { useColorMode } from '../context/ThemeContext';
 
@@ -9,7 +9,7 @@ interface ShareButtonProps {
   markedCount: number;
 }
 
-export function ShareButton({ playerName, themeId, markedCount }: ShareButtonProps) {
+export function ShareButton({ themeId, markedCount }: ShareButtonProps) {
   const [copied, setCopied] = useState(false);
   const { colorMode } = useColorMode();
   const theme = getThemeById(themeId);

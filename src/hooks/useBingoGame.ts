@@ -17,7 +17,7 @@ export interface BingoGameState {
 }
 
 export interface BingoGameActions {
-  startGame: (playerName: string) => void;
+  startGame: (playerName: string, themeQuestions?: string[]) => void;
   handleSquareClick: (squareId: number) => void;
   resetGame: () => void;
   dismissModal: () => void;

@@ -51,7 +51,7 @@ function ProgressDots({ current, total }: { current: number; total: number }) {
 
 export function CardDeckScreen({
   currentCard, drawnCards, remainingCards, playerName,
-  themeId = 'tech', successCount, skipCount, lastAction,
+  themeId = 'tech', successCount, skipCount,
   onDrawCard, onMarkSuccess, onMarkSkip, onReset, onSwitchMode,
 }: CardDeckScreenProps) {
   const { colorMode } = useColorMode();
@@ -159,7 +159,6 @@ export function CardDeckScreen({
             background: isDark ? 'rgba(255,255,255,0.04)' : '#ffffff',
             border: isDark ? '1px solid rgba(255,255,255,0.07)' : '1px solid rgba(0,0,0,0.08)',
             boxShadow: isDark ? 'none' : '0 1px 8px rgba(0,0,0,0.06)',
-            divideColor: isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)',
           }}
         >
           {([
@@ -167,7 +166,7 @@ export function CardDeckScreen({
             { label: 'Found',   value: successCount,  accent: '#22c55e' },
             { label: 'Skipped', value: skipCount,      accent: '#f43f5e' },
             { label: 'Player',  value: playerName,     isText: true },
-          ] as const).map(({ label, value, accent, isText }) => (
+          ] as Array<{ label: string; value: string | number; accent?: string; isText?: boolean }>).map(({ label, value, accent, isText }) => (
             <div
               key={label}
               className="flex-1 py-2.5 px-1 text-center"
