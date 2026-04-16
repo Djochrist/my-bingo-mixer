@@ -11,6 +11,7 @@ const PORT = 8000;
 app.use(cors());
 app.use(express.json());
 
+// --- Database setup ---
 const db = new Database(join(__dirname, 'bingo.db'));
 
 db.exec(`
@@ -36,10 +37,14 @@ db.exec(`
   );
 `);
 
+// --- Routes ---
+
+// Health check
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// Save a completed bingo game
 app.post('/api/games', (req, res) => {
   try {
     const { playerName, themeId = 'tech', mode = 'bingo', bingoCount = 0, squaresMarked = 0, durationSeconds = 0 } = req.body;
@@ -55,6 +60,7 @@ app.post('/api/games', (req, res) => {
   }
 });
 
+// Save a card deck session
 app.post('/api/card-sessions', (req, res) => {
   try {
     const { playerName, themeId = 'tech', successCount = 0, skipCount = 0, cardsDrawn = 0 } = req.body;
@@ -70,6 +76,7 @@ app.post('/api/card-sessions', (req, res) => {
   }
 });
 
+// Get leaderboard (top players by bingo count)
 app.get('/api/leaderboard', (_req, res) => {
   try {
     const rows = db.prepare(`
@@ -89,6 +96,7 @@ app.get('/api/leaderboard', (_req, res) => {
   }
 });
 
+// Get global stats
 app.get('/api/stats', (_req, res) => {
   try {
     const stats = db.prepare(`
@@ -105,5 +113,5 @@ app.get('/api/stats', (_req, res) => {
 });
 
 app.listen(PORT, '0.0.0.0', () => {
-  console.log(`Bingo Mixer API running on http://localhost:${PORT}`);
+  console.log(`🚀 Bingo Mixer API running on http://localhost:${PORT}`);
 });
